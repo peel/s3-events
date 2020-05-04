@@ -1,0 +1,45 @@
+version: "2.1"
+services:
+  localstack:
+    container_name: "${LOCALSTACK_DOCKER_NAME-localstack_main}"
+    image: localstack/localstack
+    ports:
+      - "4566-4599:4566-4599"
+      - "${PORT_WEB_UI-8080}:${PORT_WEB_UI-8080}"
+    environment:
+      - SERVICES=s3,lmbda
+      - DEBUG=${DEBUG- }
+      - DATA_DIR=${DATA_DIR- }
+      - PORT_WEB_UI=${PORT_WEB_UI- }
+      - LAMBDA_EXECUTOR=docker-reuse
+      - KINESIS_ERROR_PROBABILITY=${KINESIS_ERROR_PROBABILITY- }
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - HOST_TMP_FOLDER=${TMPDIR}
+    volumes:
+      - "${TMPDIR:-/tmp/localstack}:/tmp/localstack"
+      - "/var/run/docker.sock:/var/run/docker.sock"
+
+  setup-resources:
+    image: mesosphere/aws-cli
+    environment:
+      - AWS_ACCESS_KEY_ID=access-key
+      - AWS_SECRET_ACCESS_KEY=secret-key
+      - AWS_DEFAULT_REGION=eu-central-1
+    entrypoint: /bin/sh -c
+    command: >
+      "
+        sleep 10;
+        aws kinesis create-stream --endpoint-url=https://localstack:4567 --no-verify-ssl --stream-name recovered --shard-count 1;
+        aws s3 mb --endpoint-url=http://localstack:4572 s3://bad-rows;
+        aws s3 --endpoint-url=http://localstack:4572 cp /tmp/sample.json s3://bad-rows/sample.json;
+      "
+      depends_on:
+        - localstack
+
+  snowplow:
+      image: snowplow/snowplow-micro
+      ports:
+        - 9090:9090
+      command: "--collector-config /config/micro.conf --iglu /config/iglu.json"
+      volumes:
+        - "config:/config"

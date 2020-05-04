@@ -1,0 +1,11 @@
+{
+  "LambdaFunctionConfigurations": [
+    {
+      "Id": "s3_to_lambda",
+      "LambdaFunctionArn": "arn:aws:lambda:us-west-1:000000000000:function:s3-events",
+      "Events": [
+        "s3:ObjectCreated:*"
+      ]
+    }
+  ]
+}
